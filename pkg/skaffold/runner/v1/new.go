@@ -325,7 +325,7 @@ func getDeployer(runCtx *runcontext.RunContext, labels map[string]string) (deplo
 	var deployers deploy.DeployerMux
 	for _, d := range deployerCfg {
 		if d.HelmDeploy != nil {
-			h, err := helm.NewDeployer(runCtx, labels, d.HelmDeploy)
+			h, err := helm.NewDeployer(runCtx, labels, d.HelmDeploy, runCtx.Opts.HelmSkipBuildDependencies)
 			if err != nil {
 				return nil, err
 			}

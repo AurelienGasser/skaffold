@@ -87,7 +87,8 @@ type Deployer struct {
 	enableDebug   bool
 	isMultiConfig bool
 	// bV is the helm binary version
-	bV semver.Version
+	bV                    semver.Version
+	skipBuildDependencies bool
 }
 
 type Config interface {
@@ -96,7 +97,7 @@ type Config interface {
 }
 
 // NewDeployer returns a configured Deployer.  Returns an error if current version of helm is less than 3.0.0.
-func NewDeployer(cfg Config, labels map[string]string, h *latestV1.HelmDeploy) (*Deployer, error) {
+func NewDeployer(cfg Config, labels map[string]string, h *latestV1.HelmDeploy, skipBuildDependencies bool) (*Deployer, error) {
 	hv, err := binVer()
 	if err != nil {
 		return nil, versionGetErr(err)
@@ -105,18 +106,18 @@ func NewDeployer(cfg Config, labels map[string]string, h *latestV1.HelmDeploy) (
 	if hv.LT(helm3Version) {
 		return nil, minVersionErr()
 	}
-
 	return &Deployer{
-		HelmDeploy:    h,
-		kubeContext:   cfg.GetKubeContext(),
-		kubeConfig:    cfg.GetKubeConfig(),
-		namespace:     cfg.GetKubeNamespace(),
-		forceDeploy:   cfg.ForceDeploy(),
-		configFile:    cfg.ConfigurationFile(),
-		labels:        labels,
-		bV:            hv,
-		enableDebug:   cfg.Mode() == config.RunModes.Debug,
-		isMultiConfig: cfg.IsMultiConfig(),
+		HelmDeploy:            h,
+		kubeContext:           cfg.GetKubeContext(),
+		kubeConfig:            cfg.GetKubeConfig(),
+		namespace:             cfg.GetKubeNamespace(),
+		forceDeploy:           cfg.ForceDeploy(),
+		configFile:            cfg.ConfigurationFile(),
+		labels:                labels,
+		bV:                    hv,
+		enableDebug:           cfg.Mode() == config.RunModes.Debug,
+		isMultiConfig:         cfg.IsMultiConfig(),
+		skipBuildDependencies: skipBuildDependencies,
 	}, nil
 }
 
@@ -200,7 +201,7 @@ func (h *Deployer) Dependencies() ([]string, error) {
 			if info.IsDir() {
 				return false, nil
 			}
-			if r.SkipBuildDependencies {
+			if h.skipBuildDependencies || r.SkipBuildDependencies {
 				return true, nil
 			}
 
@@ -374,7 +375,7 @@ func (h *Deployer) deployRelease(ctx context.Context, out io.Writer, releaseName
 	}
 
 	// Only build local dependencies, but allow a user to skip them.
-	if !r.SkipBuildDependencies && r.ChartPath != "" {
+	if !(h.skipBuildDependencies || r.SkipBuildDependencies) && r.ChartPath != "" {
 		logrus.Infof("Building helm dependencies...")
 
 		if err := h.exec(ctx, out, false, nil, "dep", "build", r.ChartPath); err != nil {

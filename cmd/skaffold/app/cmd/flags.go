@@ -564,6 +564,15 @@ var flagRegistry = []Flag{
 		},
 		IsEnum: true,
 	},
+	{
+		Name:          "nodeps",
+		Usage:         "Don't build helm dependencies on deploy",
+		Value:         &opts.HelmSkipBuildDependencies,
+		DefValue:      false,
+		FlagAddMethod: "BoolVar",
+		DefinedOn:     []string{"dev", "run", "debug", "deploy"},
+		IsEnum:        true,
+	},
 }
 
 func methodNameByType(v reflect.Value) string {
